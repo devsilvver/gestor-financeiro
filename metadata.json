@@ -1,0 +1,5 @@
+{
+  "name": "Gestor Financeiro Pessoal",
+  "description": "Um aplicativo completo de gerenciamento financeiro pessoal para rastrear despesas, receitas e investimentos. Visualize seus gastos com gráficos, gerencie datas de vencimento e monitore o crescimento de seus investimentos, tudo em uma interface elegante e intuitiva.",
+  "requestFramePermissions": []
+}
