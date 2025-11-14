@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, Investment, TransactionType, TransactionCategory, TransactionStatus, InvestmentType } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -7,14 +8,66 @@ import Investments from './components/Investments';
 import EditTransactionModal from './components/EditTransactionModal';
 import MenuIcon from './components/icons/MenuIcon';
 
+const TRANSACTIONS_STORAGE_KEY = 'finance_app_transactions';
+const INVESTMENTS_STORAGE_KEY = 'finance_app_investments';
+
+
 const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'transactions' | 'investments'>('dashboard');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [investments, setInvestments] = useState<Investment[]>([]);
+  
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    try {
+      const savedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+      if (savedTransactions) {
+        const parsed = JSON.parse(savedTransactions) as any[];
+        // Convert date strings back to Date objects
+        return parsed.map(t => ({
+          ...t,
+          date: new Date(t.date),
+          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load transactions from local storage", error);
+    }
+    return [];
+  });
+
+  const [investments, setInvestments] = useState<Investment[]>(() => {
+    try {
+        const savedInvestments = localStorage.getItem(INVESTMENTS_STORAGE_KEY);
+        if (savedInvestments) {
+            const parsed = JSON.parse(savedInvestments) as any[];
+            return parsed.map(i => ({
+                ...i,
+                purchaseDate: new Date(i.purchaseDate),
+            }));
+        }
+    } catch (error) {
+        console.error("Failed to load investments from local storage", error);
+    }
+    return [];
+  });
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
+    } catch (error) {
+      console.error("Failed to save transactions to local storage", error);
+    }
+  }, [transactions]);
+
+  useEffect(() => {
+      try {
+          localStorage.setItem(INVESTMENTS_STORAGE_KEY, JSON.stringify(investments));
+      } catch (error) {
+          console.error("Failed to save investments to local storage", error);
+      }
+  }, [investments]);
 
   const viewTitles = {
     dashboard: 'Dashboard',
