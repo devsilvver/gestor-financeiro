@@ -10,22 +10,47 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ transactions, investments }) => {
-  const { totalReceitas, totalDespesas, saldo, totalInvestido, lucroInvestimentos } = useMemo(() => {
+  const { 
+    totalReceitas, 
+    totalDespesas, 
+    saldo, 
+    totalInvestido, 
+    lucroInvestimentos,
+    monthlyExpenseTransactions
+  } = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
     const totalReceitas = transactions
-      .filter(t => t.type === TransactionType.RECEITA)
+      .filter(t => {
+        if (t.type !== TransactionType.RECEITA) return false;
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === currentMonth &&
+               transactionDate.getFullYear() === currentYear;
+      })
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const totalDespesas = transactions
-      .filter(t => t.type === TransactionType.DESPESA)
-      .reduce((sum, t) => sum + t.amount, 0);
-
+    const monthlyExpenseTransactions = transactions
+      .filter(t => {
+        if (t.type !== TransactionType.DESPESA) return false;
+        
+        // Use due date for expenses if available, otherwise transaction date
+        const referenceDate = t.dueDate ? new Date(t.dueDate) : new Date(t.date);
+        
+        return referenceDate.getMonth() === currentMonth &&
+               referenceDate.getFullYear() === currentYear;
+      });
+      
+    const totalDespesas = monthlyExpenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+    
     const saldo = totalReceitas - totalDespesas;
 
     const totalInvestido = investments.reduce((sum, i) => sum + i.currentValue, 0);
     const initialInvestido = investments.reduce((sum, i) => sum + i.initialValue, 0);
     const lucroInvestimentos = totalInvestido - initialInvestido;
 
-    return { totalReceitas, totalDespesas, saldo, totalInvestido, lucroInvestimentos };
+    return { totalReceitas, totalDespesas, saldo, totalInvestido, lucroInvestimentos, monthlyExpenseTransactions };
   }, [transactions, investments]);
 
   const notifications = useMemo(() => {
@@ -48,15 +73,15 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, investments }) => {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-800">Dashboard Financeiro</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <SummaryCard title="Receita Total" value={totalReceitas} type="income" />
-        <SummaryCard title="Despesa Total" value={totalDespesas} type="expense" />
-        <SummaryCard title="Saldo Atual" value={saldo} type="balance" />
+        <SummaryCard title="Receita do Mês" value={totalReceitas} type="income" />
+        <SummaryCard title="Despesa do Mês" value={totalDespesas} type="expense" />
+        <SummaryCard title="Saldo do Mês" value={saldo} type="balance" />
         <SummaryCard title="Total Investido" value={totalInvestido} type="investment" profit={lucroInvestimentos}/>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">Despesas por Categoria</h2>
-            <ExpensePieChart transactions={transactions} />
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Despesas do Mês por Categoria</h2>
+            <ExpensePieChart transactions={monthlyExpenseTransactions} />
         </div>
         <div className="lg:col-span-3 bg-white p-6 rounded-xl shadow-md">
             <h2 className="text-xl font-semibold mb-4 text-gray-700">Últimas Transações</h2>

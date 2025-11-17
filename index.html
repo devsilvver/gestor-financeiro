@@ -17,6 +17,25 @@
               'brand-light': '#f9fafb',
               'brand-accent': '#f59e0b',
             },
+            keyframes: {
+              'fade-in-out': {
+                '0%': {
+                  opacity: '0',
+                  transform: 'translateY(1rem)'
+                },
+                '15%, 85%': {
+                  opacity: '1',
+                  transform: 'translateY(0)'
+                },
+                '100%': {
+                  opacity: '0',
+                  transform: 'translateY(1rem)'
+                }
+              }
+            },
+            animation: {
+              'fade-in-out': 'fade-in-out 3s ease-in-out forwards',
+            }
           },
         },
       }

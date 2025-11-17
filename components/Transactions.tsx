@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Transaction, TransactionType, TransactionCategory, TransactionStatus } from '../types';
 import EditIcon from './icons/EditIcon';
@@ -56,6 +57,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransactio
   const [isRecurring, setIsRecurring] = useState(false);
   const [installments, setInstallments] = useState('2');
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,6 +117,11 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransactio
           dueDate: isExpense && dueDate ? new Date(dueDate + 'T00:00:00') : undefined,
         });
     }
+
+    setShowConfirmation(true);
+    setTimeout(() => {
+        setShowConfirmation(false);
+    }, 3000);
 
     // Reset form for a better user experience
     setDescription('');
@@ -239,6 +246,13 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransactio
 
   return (
     <div className="space-y-6">
+      {showConfirmation && (
+        <div className="fixed bottom-8 right-8 z-50 flex items-center bg-brand-secondary text-white py-3 px-5 rounded-lg shadow-lg animate-fade-in-out">
+          <CheckIcon className="w-6 h-6 mr-3" />
+          <span className="font-semibold">Transação adicionada!</span>
+        </div>
+      )}
+
       <h1 className="text-3xl font-bold text-gray-800">Gerenciar Transações</h1>
       <div className="bg-white p-6 rounded-xl shadow-md">
         <div className="max-w-5xl mx-auto">
