@@ -14,6 +14,7 @@ interface TransactionsProps {
   addTransaction: (transaction: Omit<Transaction, 'id' | 'status'>) => void;
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
+  deleteRecurringTransaction: (recurringId: string) => void;
   addAmountToDebt: (transactionId: string, amountToAdd: number) => void;
   markAsPaid: (id: string) => void;
 }
@@ -47,7 +48,7 @@ const CategorySelector: React.FC<{ selected: TransactionCategory, onChange: (cat
 };
 
 
-const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransaction, onEdit, onDelete, addAmountToDebt, markAsPaid }) => {
+const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransaction, onEdit, onDelete, deleteRecurringTransaction, addAmountToDebt, markAsPaid }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<TransactionType>(TransactionType.DESPESA);
@@ -137,6 +138,12 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransactio
   const handleDeleteClick = (id: string) => {
     if(window.confirm('Tem certeza que deseja excluir esta transação?')) {
         onDelete(id);
+    }
+  }
+
+  const handleDeleteRecurringClick = (recurringId: string) => {
+    if(window.confirm('Tem certeza que deseja excluir TODAS as parcelas desta transação? Esta ação não pode ser desfeita.')) {
+        deleteRecurringTransaction(recurringId);
     }
   }
 
@@ -348,7 +355,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransactio
                                       <span>{mainDescription}</span>
                                       {installmentBadge && (
                                         <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">
-                                          {installmentBadge}
+                                          {group.length}x
                                         </span>
                                       )}
                                     </td>
@@ -359,7 +366,12 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, addTransactio
                                     <td className="p-3"><span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${statusStyles[mainTransaction.status]}`}>{mainTransaction.status}</span></td>
                                     <td className="p-3">
                                       <div className="flex items-center space-x-2">
-                                          {/* Actions for main row can be added here if needed */}
+                                         <button 
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteRecurringClick(recurringId); }} 
+                                            className="text-gray-500 hover:text-red-600 transition-colors" 
+                                            title="Excluir todas as parcelas">
+                                            <DeleteIcon className="w-5 h-5" />
+                                        </button>
                                       </div>
                                     </td>
                                 </tr>

@@ -135,6 +135,10 @@ const App: React.FC = () => {
   const deleteTransaction = (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
+
+  const deleteRecurringTransaction = (recurringId: string) => {
+    setTransactions(prev => prev.filter(t => t.recurringId !== recurringId));
+  };
   
   const addAmountToDebt = (transactionId: string, amountToAdd: number) => {
     setTransactions(prev =>
@@ -236,7 +240,7 @@ const App: React.FC = () => {
       case 'dashboard':
         return <Dashboard transactions={updatedTransactions} investments={investments} />;
       case 'transactions':
-        return <Transactions transactions={updatedTransactions} addTransaction={addTransaction} onEdit={handleEditClick} onDelete={deleteTransaction} addAmountToDebt={addAmountToDebt} markAsPaid={markAsPaid} />;
+        return <Transactions transactions={updatedTransactions} addTransaction={addTransaction} onEdit={handleEditClick} onDelete={deleteTransaction} deleteRecurringTransaction={deleteRecurringTransaction} addAmountToDebt={addAmountToDebt} markAsPaid={markAsPaid} />;
       case 'investments':
         return <Investments investments={investments} addInvestment={addInvestment} />;
       default:
