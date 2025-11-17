@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Transaction, Investment, TransactionType, TransactionStatus } from '../types';
 import SummaryCard from './SummaryCard';
@@ -69,6 +70,40 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, investments }) => {
     return [...overdue, ...dueSoon];
   }, [transactions]);
 
+  const latestTransactionsForDisplay = useMemo(() => {
+    const recurringGroupsInfo = new Map<string, { count: number }>();
+    transactions.forEach(t => {
+        if (t.recurringId) {
+            if (!recurringGroupsInfo.has(t.recurringId)) {
+                recurringGroupsInfo.set(t.recurringId, { count: 0 });
+            }
+            recurringGroupsInfo.get(t.recurringId)!.count++;
+        }
+    });
+
+    const displayList: Transaction[] = [];
+    const processedRecurringIds = new Set<string>();
+
+    for (const transaction of transactions) {
+        if (transaction.recurringId) {
+            if (!processedRecurringIds.has(transaction.recurringId)) {
+                processedRecurringIds.add(transaction.recurringId);
+                const mainDescription = transaction.description.replace(/\s\(\d+\/\d+\)$/, '');
+                const totalInstallments = recurringGroupsInfo.get(transaction.recurringId)?.count || 0;
+                
+                displayList.push({
+                    ...transaction,
+                    description: totalInstallments > 1 ? `${mainDescription} (${totalInstallments}x)` : mainDescription
+                });
+            }
+        } else {
+            displayList.push(transaction);
+        }
+    }
+    return displayList.slice(0, 5);
+  }, [transactions]);
+
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-800">Dashboard Financeiro</h1>
@@ -95,7 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, investments }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {transactions.slice(0, 5).map(t => (
+                        {latestTransactionsForDisplay.map(t => (
                             <tr key={t.id}>
                                 <td className="p-2">{t.description}</td>
                                 <td className={`p-2 font-semibold ${t.type === TransactionType.RECEITA ? 'text-green-500' : 'text-red-500'}`}>
