@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Investment, InvestmentType } from '../types';
 
 interface InvestmentsProps {
@@ -20,6 +20,22 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, addInvestment })
     const [initialValue, setInitialValue] = useState('');
     const [currentValue, setCurrentValue] = useState('');
     const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+
+    const quickAddSuggestions = useMemo(() => {
+        const suggestionsMap = new Map<string, { name: string; type: InvestmentType }>();
+
+        // Adiciona exemplos padrão
+        investmentExamples.forEach(ex => {
+            suggestionsMap.set(ex.name.toLowerCase(), ex);
+        });
+
+        // Adiciona (ou sobrescreve) com os investimentos do usuário para garantir que os mais recentes e relevantes apareçam
+        investments.forEach(inv => {
+            suggestionsMap.set(inv.name.toLowerCase(), { name: inv.name, type: inv.type });
+        });
+
+        return Array.from(suggestionsMap.values());
+    }, [investments]);
 
     const handleCurrencyChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
         const rawValue = e.target.value;
@@ -70,9 +86,9 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, addInvestment })
       <h1 className="text-3xl font-bold text-gray-800">Meus Investimentos</h1>
       
       <div className="bg-white p-6 rounded-xl shadow-md">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Comece com um Exemplo</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">Sugestões Rápidas</h2>
         <div className="flex flex-wrap gap-2">
-            {investmentExamples.map(ex => (
+            {quickAddSuggestions.map(ex => (
                 <button 
                     key={ex.name}
                     onClick={() => handleExampleClick(ex)}
