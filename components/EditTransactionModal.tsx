@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Transaction, TransactionType, TransactionCategory } from '../types';
+import { Transaction, TransactionType, TransactionCategory, TransactionStatus } from '../types';
 
 interface EditTransactionModalProps {
   transaction: Transaction;
@@ -14,19 +14,18 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const [category, setCategory] = useState<TransactionCategory>(TransactionCategory.OUTROS);
   const [date, setDate] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [status, setStatus] = useState<TransactionStatus>(TransactionStatus.DESPESA);
+
 
   useEffect(() => {
     if (transaction) {
       setDescription(transaction.description);
-      const formattedAmount = new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(transaction.amount);
-      setAmount(formattedAmount);
+      setAmount(transaction.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
       setType(transaction.type);
       setCategory(transaction.category);
       setDate(new Date(transaction.date).toISOString().split('T')[0]);
       setDueDate(transaction.dueDate ? new Date(transaction.dueDate).toISOString().split('T')[0] : '');
+      setStatus(transaction.status);
     }
   }, [transaction]);
 
@@ -53,8 +52,8 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
     const numericAmount = amount ? parseFloat(amount.replace(/\D/g, '')) / 100 : 0;
 
     if (!description || numericAmount <= 0 || !category || !date) return;
-
-    const isDebt = type === TransactionType.DESPESA && category === TransactionCategory.DIVIDAS;
+    
+    const hasDueDate = (type === TransactionType.DESPESA && dueDate);
 
     onSave({
       ...transaction,
@@ -63,9 +62,29 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
       type,
       category,
       date: new Date(date + 'T00:00:00'),
-      dueDate: isDebt && dueDate ? new Date(dueDate + 'T00:00:00') : undefined,
+      dueDate: hasDueDate ? new Date(dueDate + 'T00:00:00') : undefined,
+      status,
     });
   };
+  
+  const availableStatuses = () => {
+    if(type === TransactionType.RECEITA) {
+        return [TransactionStatus.RECEITA];
+    }
+    if (dueDate) {
+        return [TransactionStatus.PAGO, TransactionStatus.PENDENTE, TransactionStatus.VENCIDO];
+    }
+    return [TransactionStatus.DESPESA];
+  }
+
+  useEffect(() => {
+    // Reset status if it becomes invalid for the current type/dueDate combination
+    const validStatuses = availableStatuses();
+    if (!validStatuses.includes(status)) {
+        setStatus(validStatuses[0]);
+    }
+  }, [type, dueDate]);
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -97,11 +116,19 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
               <label className="block text-sm font-medium text-gray-600">Data da Transação</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand-primary focus:border-brand-primary" required />
             </div>
-            {type === TransactionType.DESPESA && category === TransactionCategory.DIVIDAS && (
-              <div>
-                <label className="block text-sm font-medium text-gray-600">Data de Vencimento</label>
-                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand-primary focus:border-brand-primary" required />
-              </div>
+            {type === TransactionType.DESPESA && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-600">Data de Vencimento</label>
+                  <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand-primary focus:border-brand-primary" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-600">Status</label>
+                    <select value={status} onChange={e => setStatus(e.target.value as TransactionStatus)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand-primary focus:border-brand-primary">
+                        {availableStatuses().map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+              </>
             )}
           </div>
           <div className="flex justify-end space-x-3 pt-4">

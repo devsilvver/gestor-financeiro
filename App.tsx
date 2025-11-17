@@ -92,8 +92,10 @@ const App: React.FC = () => {
     if (transaction.type === TransactionType.RECEITA) {
         status = TransactionStatus.RECEITA;
     } else { // DESPESA
-        if (transaction.category === TransactionCategory.DIVIDAS && transaction.dueDate) {
-            status = TransactionStatus.PENDENTE;
+        if (transaction.dueDate) {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            status = new Date(transaction.dueDate) < now ? TransactionStatus.VENCIDO : TransactionStatus.PENDENTE;
         } else {
             status = TransactionStatus.DESPESA;
         }
@@ -126,20 +128,7 @@ const App: React.FC = () => {
   };
 
   const updateTransaction = (updatedTransaction: Transaction) => {
-    let status: TransactionStatus;
-    if (updatedTransaction.type === TransactionType.RECEITA) {
-        status = TransactionStatus.RECEITA;
-    } else {
-        if (updatedTransaction.category === TransactionCategory.DIVIDAS && updatedTransaction.dueDate) {
-             const now = new Date();
-             now.setHours(0, 0, 0, 0);
-             status = new Date(updatedTransaction.dueDate) < now ? TransactionStatus.VENCIDO : TransactionStatus.PENDENTE;
-        } else {
-            status = TransactionStatus.DESPESA;
-        }
-    }
-
-    setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? { ...updatedTransaction, status } : t));
+    setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
     handleCloseModal();
   };
 
@@ -147,17 +136,107 @@ const App: React.FC = () => {
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
   
+  const addAmountToDebt = (transactionId: string, amountToAdd: number) => {
+    setTransactions(prev =>
+      prev.map(t => {
+        if (t.id === transactionId) {
+          return { ...t, amount: t.amount + amountToAdd };
+        }
+        return t;
+      })
+    );
+  };
+
+  const markAsPaid = (transactionId: string) => {
+    setTransactions(prev =>
+      prev.map(t => {
+        if (t.id === transactionId) {
+          return { ...t, status: TransactionStatus.PAGO };
+        }
+        return t;
+      })
+    );
+  };
+
   const handleSetView = (newView: 'dashboard' | 'transactions' | 'investments') => {
     setView(newView);
     setIsSidebarOpen(false); // Fecha a sidebar ao selecionar uma view no mobile
   }
+
+  const exportData = () => {
+    try {
+      const dataToExport = {
+        transactions,
+        investments,
+      };
+      const jsonString = JSON.stringify(dataToExport, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `dados_financeiros_${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export data", error);
+      alert("Ocorreu um erro ao exportar os dados.");
+    }
+  };
+
+  const importData = (file: File) => {
+    if (!file) return;
+
+    if (!window.confirm("Tem certeza que deseja importar os dados? Todos os dados atuais serão substituídos. É recomendado fazer um backup antes.")) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result;
+        if (typeof text !== 'string') throw new Error("File content is not a string");
+
+        const parsedData = JSON.parse(text);
+        
+        if (!parsedData.transactions || !parsedData.investments) {
+            throw new Error("Arquivo JSON inválido. Faltando 'transactions' ou 'investments'.");
+        }
+
+        const importedTransactions = (parsedData.transactions as any[]).map(t => ({
+          ...t,
+          date: new Date(t.date),
+          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+        }));
+
+        const importedInvestments = (parsedData.investments as any[]).map(i => ({
+          ...i,
+          purchaseDate: new Date(i.purchaseDate),
+        }));
+        
+        setTransactions(importedTransactions);
+        setInvestments(importedInvestments);
+        alert("Dados importados com sucesso!");
+
+      } catch (error) {
+        console.error("Failed to import data", error);
+        alert(`Ocorreu um erro ao importar os dados: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      }
+    };
+    reader.onerror = () => {
+        alert("Não foi possível ler o arquivo.");
+    }
+    reader.readAsText(file);
+  };
 
   const renderView = () => {
     switch (view) {
       case 'dashboard':
         return <Dashboard transactions={updatedTransactions} investments={investments} />;
       case 'transactions':
-        return <Transactions transactions={updatedTransactions} addTransaction={addTransaction} onEdit={handleEditClick} onDelete={deleteTransaction} />;
+        return <Transactions transactions={updatedTransactions} addTransaction={addTransaction} onEdit={handleEditClick} onDelete={deleteTransaction} addAmountToDebt={addAmountToDebt} markAsPaid={markAsPaid} />;
       case 'investments':
         return <Investments investments={investments} addInvestment={addInvestment} />;
       default:
@@ -167,7 +246,14 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 text-gray-800">
-      <Sidebar setView={handleSetView} activeView={view} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar 
+        setView={handleSetView} 
+        activeView={view} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)}
+        onExport={exportData}
+        onImport={importData}
+      />
       <main className="flex-1 flex flex-col overflow-hidden">
          <header className="md:hidden flex items-center justify-between bg-brand-dark text-white p-4 shadow-md">
             <button onClick={() => setIsSidebarOpen(true)}>

@@ -33,6 +33,7 @@ export interface Transaction {
   date: Date;
   dueDate?: Date;
   status: TransactionStatus;
+  recurringId?: string;
 }
 
 export enum InvestmentType {
