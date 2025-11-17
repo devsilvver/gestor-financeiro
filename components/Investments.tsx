@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Investment, InvestmentType } from '../types';
+import DeleteIcon from './icons/DeleteIcon';
 
 interface InvestmentsProps {
   investments: Investment[];
   addInvestment: (investment: Omit<Investment, 'id'>) => void;
+  deleteInvestment: (id: string) => void;
 }
 
 const investmentExamples = [
@@ -14,7 +16,7 @@ const investmentExamples = [
     { name: 'FII MXRF11', type: InvestmentType.FUNDOS_IMOBILIARIOS },
 ];
 
-const Investments: React.FC<InvestmentsProps> = ({ investments, addInvestment }) => {
+const Investments: React.FC<InvestmentsProps> = ({ investments, addInvestment, deleteInvestment }) => {
     const [name, setName] = useState('');
     const [type, setType] = useState<InvestmentType>(InvestmentType.ACOES);
     const [initialValue, setInitialValue] = useState('');
@@ -81,6 +83,12 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, addInvestment })
         setPurchaseDate(new Date().toISOString().split('T')[0]);
     };
 
+    const handleDeleteClick = (id: string) => {
+      if (window.confirm('Tem certeza que deseja excluir este investimento? Esta ação não pode ser desfeita.')) {
+        deleteInvestment(id);
+      }
+    };
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-800">Meus Investimentos</h1>
@@ -144,7 +152,16 @@ const Investments: React.FC<InvestmentsProps> = ({ investments, addInvestment })
                     <div>
                         <div className="flex justify-between items-start">
                              <h3 className="font-bold text-lg text-gray-800">{inv.name}</h3>
-                             <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{inv.type}</span>
+                             <div className="flex items-center space-x-2 flex-shrink-0">
+                                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full whitespace-nowrap">{inv.type}</span>
+                                <button
+                                    onClick={() => handleDeleteClick(inv.id)}
+                                    className="text-gray-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 rounded-full p-1"
+                                    aria-label="Excluir investimento"
+                                >
+                                    <DeleteIcon className="w-5 h-5" />
+                                </button>
+                              </div>
                         </div>
                         <p className="text-sm text-gray-500 mt-1">Comprado em: {new Date(inv.purchaseDate).toLocaleDateString('pt-BR')}</p>
                     </div>

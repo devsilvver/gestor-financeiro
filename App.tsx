@@ -117,6 +117,10 @@ const App: React.FC = () => {
     setInvestments(prev => [newInvestment, ...prev]);
   };
 
+  const deleteInvestment = (id: string) => {
+    setInvestments(prev => prev.filter(inv => inv.id !== id));
+  };
+
   const handleEditClick = (transaction: Transaction) => {
     setEditingTransaction(transaction);
     setIsEditModalOpen(true);
@@ -242,7 +246,7 @@ const App: React.FC = () => {
       case 'transactions':
         return <Transactions transactions={updatedTransactions} addTransaction={addTransaction} onEdit={handleEditClick} onDelete={deleteTransaction} deleteRecurringTransaction={deleteRecurringTransaction} addAmountToDebt={addAmountToDebt} markAsPaid={markAsPaid} />;
       case 'investments':
-        return <Investments investments={investments} addInvestment={addInvestment} />;
+        return <Investments investments={investments} addInvestment={addInvestment} deleteInvestment={deleteInvestment} />;
       default:
         return <Dashboard transactions={updatedTransactions} investments={investments} />;
     }
