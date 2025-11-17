@@ -1,73 +1,104 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { Transaction, Investment, TransactionType, TransactionCategory, TransactionStatus, InvestmentType } from './types';
+import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, Timestamp, writeBatch, where, getDocs } from 'firebase/firestore';
+import { auth, db } from './firebase';
+
+import { Transaction, Investment, TransactionType, TransactionStatus } from './types';
+
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Investments from './components/Investments';
 import EditTransactionModal from './components/EditTransactionModal';
 import MenuIcon from './components/icons/MenuIcon';
-
-const TRANSACTIONS_STORAGE_KEY = 'finance_app_transactions';
-const INVESTMENTS_STORAGE_KEY = 'finance_app_investments';
+import Login from './components/Login';
 
 
 const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'transactions' | 'investments'>('dashboard');
-  
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    try {
-      const savedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-      if (savedTransactions) {
-        const parsed = JSON.parse(savedTransactions) as any[];
-        // Convert date strings back to Date objects
-        return parsed.map(t => ({
-          ...t,
-          date: new Date(t.date),
-          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to load transactions from local storage", error);
-    }
-    return [];
-  });
-
-  const [investments, setInvestments] = useState<Investment[]>(() => {
-    try {
-        const savedInvestments = localStorage.getItem(INVESTMENTS_STORAGE_KEY);
-        if (savedInvestments) {
-            const parsed = JSON.parse(savedInvestments) as any[];
-            return parsed.map(i => ({
-                ...i,
-                purchaseDate: new Date(i.purchaseDate),
-            }));
-        }
-    } catch (error) {
-        console.error("Failed to load investments from local storage", error);
-    }
-    return [];
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
-    } catch (error) {
-      console.error("Failed to save transactions to local storage", error);
-    }
-  }, [transactions]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
+  // Auth Listener
   useEffect(() => {
-      try {
-          localStorage.setItem(INVESTMENTS_STORAGE_KEY, JSON.stringify(investments));
-      } catch (error) {
-          console.error("Failed to save investments to local storage", error);
-      }
-  }, [investments]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Firestore Listeners
+  useEffect(() => {
+    if (!user) {
+      setTransactions([]);
+      setInvestments([]);
+      return;
+    }
+
+    // Transactions listener
+    const transCollectionRef = collection(db, 'users', user.uid, 'transactions');
+    const qTransactions = query(transCollectionRef, orderBy('date', 'desc'));
+    const unsubscribeTransactions = onSnapshot(qTransactions, (snapshot) => {
+      const transactionsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: (data.date as Timestamp).toDate(),
+          dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate() : undefined,
+        } as Transaction;
+      });
+      setTransactions(transactionsData);
+    });
+
+    // Investments listener
+    const invCollectionRef = collection(db, 'users', user.uid, 'investments');
+    const qInvestments = query(invCollectionRef, orderBy('purchaseDate', 'desc'));
+    const unsubscribeInvestments = onSnapshot(qInvestments, (snapshot) => {
+      const investmentsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          purchaseDate: (data.purchaseDate as Timestamp).toDate(),
+        } as Investment;
+      });
+      setInvestments(investmentsData);
+    });
+
+    return () => {
+      unsubscribeTransactions();
+      unsubscribeInvestments();
+    };
+  }, [user]);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      setLoginError(null);
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Authentication error:", error);
+      setLoginError("Falha ao fazer login. Tente novamente.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   const viewTitles = {
     dashboard: 'Dashboard',
@@ -83,42 +114,49 @@ const App: React.FC = () => {
         return { ...t, status: TransactionStatus.VENCIDO };
       }
       return t;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }); // Firestore query already sorts by date
   }, [transactions]);
+  
+  // --- Data Mutation Functions ---
 
-  const addTransaction = (transaction: Omit<Transaction, 'id' | 'status'>) => {
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'status'>) => {
+    if (!user) return;
+    
     let status: TransactionStatus;
-
     if (transaction.type === TransactionType.RECEITA) {
-        status = TransactionStatus.RECEITA;
+      status = TransactionStatus.RECEITA;
     } else { // DESPESA
-        if (transaction.dueDate) {
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-            status = new Date(transaction.dueDate) < now ? TransactionStatus.VENCIDO : TransactionStatus.PENDENTE;
-        } else {
-            status = TransactionStatus.DESPESA;
-        }
+      if (transaction.dueDate) {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        status = new Date(transaction.dueDate) < now ? TransactionStatus.VENCIDO : TransactionStatus.PENDENTE;
+      } else {
+        status = TransactionStatus.DESPESA;
+      }
     }
 
-    const newTransaction: Transaction = {
+    const newTransaction = {
       ...transaction,
-      id: new Date().toISOString() + Math.random(),
-      status: status,
+      date: Timestamp.fromDate(transaction.date),
+      dueDate: transaction.dueDate ? Timestamp.fromDate(transaction.dueDate) : null,
+      status,
     };
-    setTransactions(prev => [newTransaction, ...prev]);
+    
+    await addDoc(collection(db, 'users', user.uid, 'transactions'), newTransaction);
   };
 
-  const addInvestment = (investment: Omit<Investment, 'id'>) => {
-    const newInvestment: Investment = {
+  const addInvestment = async (investment: Omit<Investment, 'id'>) => {
+    if (!user) return;
+    const newInvestment = {
       ...investment,
-      id: new Date().toISOString(),
+      purchaseDate: Timestamp.fromDate(investment.purchaseDate)
     };
-    setInvestments(prev => [newInvestment, ...prev]);
+    await addDoc(collection(db, 'users', user.uid, 'investments'), newInvestment);
   };
 
-  const deleteInvestment = (id: string) => {
-    setInvestments(prev => prev.filter(inv => inv.id !== id));
+  const deleteInvestment = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'investments', id));
   };
 
   const handleEditClick = (transaction: Transaction) => {
@@ -131,113 +169,59 @@ const App: React.FC = () => {
     setIsEditModalOpen(false);
   };
 
-  const updateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
+  const updateTransaction = async (updatedTransaction: Transaction) => {
+    if (!user) return;
+    const { id, ...dataToUpdate } = updatedTransaction;
+    const docRef = doc(db, 'users', user.uid, 'transactions', id);
+    await updateDoc(docRef, {
+      ...dataToUpdate,
+      date: Timestamp.fromDate(dataToUpdate.date),
+      dueDate: dataToUpdate.dueDate ? Timestamp.fromDate(dataToUpdate.dueDate) : null,
+    });
     handleCloseModal();
   };
 
-  const deleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+  const deleteTransaction = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'transactions', id));
   };
 
-  const deleteRecurringTransaction = (recurringId: string) => {
-    setTransactions(prev => prev.filter(t => t.recurringId !== recurringId));
+  const deleteRecurringTransaction = async (recurringId: string) => {
+    if (!user) return;
+    const transCollectionRef = collection(db, 'users', user.uid, 'transactions');
+    const q = query(transCollectionRef, where("recurringId", "==", recurringId));
+    const querySnapshot = await getDocs(q);
+    
+    const batch = writeBatch(db);
+    querySnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
   };
   
-  const addAmountToDebt = (transactionId: string, amountToAdd: number) => {
-    setTransactions(prev =>
-      prev.map(t => {
-        if (t.id === transactionId) {
-          return { ...t, amount: t.amount + amountToAdd };
-        }
-        return t;
-      })
-    );
+  const addAmountToDebt = async (transactionId: string, amountToAdd: number) => {
+    if (!user) return;
+    const transaction = transactions.find(t => t.id === transactionId);
+    if(transaction) {
+      const docRef = doc(db, 'users', user.uid, 'transactions', transactionId);
+      await updateDoc(docRef, {
+        amount: transaction.amount + amountToAdd
+      });
+    }
   };
 
-  const markAsPaid = (transactionId: string) => {
-    setTransactions(prev =>
-      prev.map(t => {
-        if (t.id === transactionId) {
-          return { ...t, status: TransactionStatus.PAGO };
-        }
-        return t;
-      })
-    );
+  const markAsPaid = async (transactionId: string) => {
+    if (!user) return;
+    const docRef = doc(db, 'users', user.uid, 'transactions', transactionId);
+    await updateDoc(docRef, {
+      status: TransactionStatus.PAGO
+    });
   };
 
   const handleSetView = (newView: 'dashboard' | 'transactions' | 'investments') => {
     setView(newView);
-    setIsSidebarOpen(false); // Fecha a sidebar ao selecionar uma view no mobile
+    setIsSidebarOpen(false);
   }
-
-  const exportData = () => {
-    try {
-      const dataToExport = {
-        transactions,
-        investments,
-      };
-      const jsonString = JSON.stringify(dataToExport, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const date = new Date().toISOString().split('T')[0];
-      link.download = `dados_financeiros_${date}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Failed to export data", error);
-      alert("Ocorreu um erro ao exportar os dados.");
-    }
-  };
-
-  const importData = (file: File) => {
-    if (!file) return;
-
-    if (!window.confirm("Tem certeza que deseja importar os dados? Todos os dados atuais serão substituídos. É recomendado fazer um backup antes.")) {
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result;
-        if (typeof text !== 'string') throw new Error("File content is not a string");
-
-        const parsedData = JSON.parse(text);
-        
-        if (!parsedData.transactions || !parsedData.investments) {
-            throw new Error("Arquivo JSON inválido. Faltando 'transactions' ou 'investments'.");
-        }
-
-        const importedTransactions = (parsedData.transactions as any[]).map(t => ({
-          ...t,
-          date: new Date(t.date),
-          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
-        }));
-
-        const importedInvestments = (parsedData.investments as any[]).map(i => ({
-          ...i,
-          purchaseDate: new Date(i.purchaseDate),
-        }));
-        
-        setTransactions(importedTransactions);
-        setInvestments(importedInvestments);
-        alert("Dados importados com sucesso!");
-
-      } catch (error) {
-        console.error("Failed to import data", error);
-        alert(`Ocorreu um erro ao importar os dados: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-      }
-    };
-    reader.onerror = () => {
-        alert("Não foi possível ler o arquivo.");
-    }
-    reader.readAsText(file);
-  };
 
   const renderView = () => {
     switch (view) {
@@ -252,15 +236,27 @@ const App: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+        <div className="text-lg font-semibold text-gray-600">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login onLogin={handleLogin} error={loginError} />;
+  }
+
   return (
     <div className="flex h-screen bg-gray-100 text-gray-800">
       <Sidebar 
+        user={user}
         setView={handleSetView} 
         activeView={view} 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)}
-        onExport={exportData}
-        onImport={importData}
+        onLogout={handleLogout}
       />
       <main className="flex-1 flex flex-col overflow-hidden">
          <header className="md:hidden flex items-center justify-between bg-brand-dark text-white p-4 shadow-md">

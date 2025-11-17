@@ -1,45 +1,28 @@
-
-import React, { useRef } from 'react';
+import React from 'react';
 import LogoIcon from './icons/LogoIcon';
 import DashboardIcon from './icons/DashboardIcon';
 import TransactionIcon from './icons/TransactionIcon';
 import InvestmentIcon from './icons/InvestmentIcon';
-import UploadIcon from './icons/UploadIcon';
-import DownloadIcon from './icons/DownloadIcon';
+import LogoutIcon from './icons/LogoutIcon';
+import { User } from 'firebase/auth';
 
 type View = 'dashboard' | 'transactions' | 'investments';
 
 interface SidebarProps {
+  user: User | null;
   setView: (view: View) => void;
   activeView: View;
   isOpen: boolean;
   onClose: () => void;
-  onExport: () => void;
-  onImport: (file: File) => void;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ setView, activeView, isOpen, onClose, onExport, onImport }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, setView, activeView, isOpen, onClose, onLogout }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'transactions', label: 'Transações', icon: TransactionIcon },
     { id: 'investments', label: 'Investimentos', icon: InvestmentIcon },
   ];
-
-  const importInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImportClick = () => {
-    importInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      onImport(file);
-    }
-    if (importInputRef.current) {
-        importInputRef.current.value = '';
-    }
-  };
 
   const getNavItemClasses = (id: View) => {
     const baseClasses = 'flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors duration-200 cursor-pointer';
@@ -63,6 +46,13 @@ const Sidebar: React.FC<SidebarProps> = ({ setView, activeView, isOpen, onClose,
             <span className="ml-3 text-xl font-bold">Financeiro</span>
           </div>
           <nav className="flex-1 px-4 py-6 overflow-y-auto">
+            <div className="flex items-center mb-6 px-2">
+                {user?.photoURL && <img src={user.photoURL} alt="Foto do usuário" className="w-10 h-10 rounded-full" />}
+                <div className="ml-3">
+                    <p className="text-sm font-semibold text-white">{user?.displayName}</p>
+                    <p className="text-xs text-gray-400">{user?.email}</p>
+                </div>
+            </div>
             <ul className="space-y-2">
               {navItems.map(item => (
                 <li key={item.id}>
@@ -73,30 +63,16 @@ const Sidebar: React.FC<SidebarProps> = ({ setView, activeView, isOpen, onClose,
                 </li>
               ))}
             </ul>
-            <div className="mt-8 pt-4 border-t border-gray-700">
-              <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dados</h3>
-              <ul className="space-y-2 mt-2">
-                  <li>
-                      <a onClick={handleImportClick} className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors duration-200 cursor-pointer">
-                          <UploadIcon className="w-6 h-6 mr-3"/>
-                          <span>Importar Dados</span>
-                      </a>
-                      <input
-                          type="file"
-                          ref={importInputRef}
-                          onChange={handleFileChange}
-                          accept=".json"
-                          className="hidden"
-                      />
-                  </li>
-                  <li>
-                      <a onClick={onExport} className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors duration-200 cursor-pointer">
-                          <DownloadIcon className="w-6 h-6 mr-3"/>
-                          <span>Exportar Dados</span>
-                      </a>
-                  </li>
-              </ul>
-            </div>
+             <div className="mt-8 pt-4 border-t border-gray-700">
+                <ul className="space-y-2 mt-2">
+                    <li>
+                        <a onClick={onLogout} className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors duration-200 cursor-pointer">
+                            <LogoutIcon className="w-6 h-6 mr-3"/>
+                            <span>Sair</span>
+                        </a>
+                    </li>
+                </ul>
+             </div>
           </nav>
           <div className="px-4 py-4 border-t border-gray-700 text-center text-xs text-gray-500 flex-shrink-0">
             <p>&copy; {new Date().getFullYear()} Guilherme Silvestrini</p>
