@@ -8,7 +8,7 @@
 ### 📸 Demonstração
 
 <div align="center">
-  <img src="https://via.placeholder.com/1200x600?text=Print+do+Dashboard+Aqui" width="100%" alt="Dashboard Screenshot" />
+  <img src="https://via.placeholder.com/1200x600?text=https://imgur.com/8Qif10n" width="100%" alt="Dashboard Screenshot" />
 </div>
 
 ---
@@ -52,7 +52,7 @@ Este projeto foi construído utilizando as tecnologias mais modernas do ecossist
 
 #### 1. Clone o repositório
 
-git clone [https://github.com/devsilvver/gestor-financeiro.git](https://github.com/devsilvver/gestor-financeiro.git)
+git clone [https://github.com/devsilvver/gestor-financeiro.git]([https://github.com/devsilvver/gestor-financeiro.git])
 cd gestor-financeiro
 
 #### 2. Instale as depenências
@@ -71,6 +71,17 @@ VITE_FIREBASE_APP_ID="seu-app-id"
 #### 4. Rode o projeto:
 
 npm run dev
+
+O projeto estará rodando em http://localhost:3000.
+
+📂 Estrutura do Projeto
+src/
+├── components/        # Componentes reutilizáveis (Sidebar, Modais, Cards)
+├── icons/            # Ícones SVG customizados
+├── types.ts          # Definições de Tipos TypeScript (Interfaces)
+├── firebase.ts       # Configuração e inicialização do Firebase
+├── App.tsx           # Componente principal e lógica de rotas/estado
+└── main.tsx          # Ponto de entrada da aplicação
 
 👤 Autor
 
