@@ -55,6 +55,23 @@ Este projeto foi construído utilizando as tecnologias mais modernas do ecossist
 git clone [https://github.com/devsilvver/gestor-financeiro.git](https://github.com/devsilvver/gestor-financeiro.git)
 cd gestor-financeiro
 
+#### 2. Instale as depenências
+
+npm install
+
+#### 3. Configure o Firebase: Crie um arquivo .env na raiz e adicione suas chaves:
+
+VITE_FIREBASE_API_KEY="sua-api-key"
+VITE_FIREBASE_AUTH_DOMAIN="seu-projeto.firebaseapp.com"
+VITE_FIREBASE_PROJECT_ID="seu-project-id"
+VITE_FIREBASE_STORAGE_BUCKET="seu-bucket.appspot.com"
+VITE_FIREBASE_MESSAGING_SENDER_ID="seu-sender-id"
+VITE_FIREBASE_APP_ID="seu-app-id"
+
+#### 4. Rode o projeto:
+
+npm run dev
+
 👤 Autor
 
 Feito por Guilherme Silvestrini.
