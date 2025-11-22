@@ -8,7 +8,7 @@
 ### 📸 Demonstração
 
 <div align="center">
-  <img src="https://imgur.com/8Qif10n" width="100%" alt="Dashboard Screenshot" />
+  <img src="https://i.imgur.com/8Qif10n.png" width="100%" alt="Dashboard Screenshot" />
 </div>
 
 ---
